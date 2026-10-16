@@ -1,0 +1,125 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "sqlite"
+  url      = "file:dev.sqlite"
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+model EbookFile {
+  id          String        @id @default(uuid())
+  shopId      String
+  gcsPath     String
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  coverArtUrl String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  products    ProductFile[]
+  deliveries  Delivery[]
+}
+
+model ProductFile {
+  id               String    @id @default(uuid())
+  shopId           String
+  shopifyProductId String
+  shopifyVariantId String?
+  fileId           String
+  file             EbookFile @relation(fields: [fileId], references: [id])
+  position         Int       @default(0)
+  createdAt        DateTime  @default(now())
+}
+
+model Delivery {
+  id                String            @id @default(uuid())
+  shopId            String
+  orderId           String
+  productId         String?
+  shopifyCustomerId String?
+  fileId            String
+  file              EbookFile         @relation(fields: [fileId], references: [id])
+  token             String            @unique @default(uuid())
+  status            String            @default("pending")
+  downloadsCount    Int               @default(0)
+  maxDownloads      Int               @default(5)
+  expiresAt         DateTime?
+  sentAt            DateTime?
+  createdAt         DateTime          @default(now())
+  attempts          DeliveryAttempt[]
+}
+
+model DeliveryAttempt {
+  id          String   @id @default(uuid())
+  deliveryId  String
+  delivery    Delivery @relation(fields: [deliveryId], references: [id])
+  attemptedAt DateTime @default(now())
+  ipAddress   String?
+  userAgent   String?
+  success     Boolean  @default(false)
+}
+
+model MerchantSettings {
+  id               String   @id @default(uuid())
+  shopId           String   @unique
+  maxDownloads     Int      @default(5)
+  expiryDays       Int      @default(30)
+  watermarkEnabled Boolean  @default(false)
+  watermarkVisible Boolean  @default(false)
+  fromEmail        String?
+  fromName         String?
+  brandColor       String?
+  logoUrl          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model ShopPlan {
+  id                     String    @id @default(uuid())
+  shopId                 String    @unique
+  plan                   String    @default("free") // "free" | "basic" | "pro"
+  shopifySubscriptionId  String?   // Shopify GID from billing API
+  trialEndsAt            DateTime?
+  activatedAt            DateTime  @default(now())
+  cancelledAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+}
+
+model MonthlyUsage {
+  id             String   @id @default(uuid())
+  shopId         String
+  monthKey       String   // e.g. "2026-06"
+  downloadCount  Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([shopId, monthKey])
+}
